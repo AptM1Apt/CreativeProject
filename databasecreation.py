@@ -1,6 +1,11 @@
 import sqlite3 as s 
+import os
 
-connection = s.connect('CemeteryLookUp.db')
+file_path = 'CemeteryLookUp.db'
+
+os.remove(file_path)
+
+connection = s.connect(file_path)
 
 cur = connection.cursor()
 
@@ -207,16 +212,13 @@ insert into person_descendant (Person_id, Descendant_id) values
     (29, 19),
     (30, 20);
 
--- Добавляем столбец ImageLink
 ALTER TABLE Person
-ADD COLUMN ImageLink VARCHAR(255);
+ADD COLUMN ImageLink TEXT;
 
--- Заполняем NULL значения в столбце ImageLink по указанному алгоритму
 UPDATE Person
 SET ImageLink = "images/img" || id || ".png"
 WHERE ImageLink IS NULL;
 
--- Создаем триггер для автоматического заполнения ImageLink
 CREATE TRIGGER InsertImageLink
 AFTER INSERT ON Person
 FOR EACH ROW

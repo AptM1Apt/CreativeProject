@@ -1,4 +1,5 @@
 import sys
+from PyQt6.QtGui import QPixmap
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QTableWidget, QTableWidgetItem, QVBoxLayout, QPushButton, QWidget,
     QHBoxLayout, QDialog, QLabel, QLineEdit, QMessageBox, QComboBox
@@ -12,7 +13,7 @@ class CemeteryApp(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Cemetery Lookup")
-        self.setGeometry(100, 100, 500, 800)
+        self.setGeometry(100, 100, 450, 500)
 
         # Main Layout
         layout = QVBoxLayout()
@@ -67,7 +68,7 @@ class CemeteryApp(QMainWindow):
                 self.table.setItem(row_idx, col_idx, QTableWidgetItem(str(col_data)))
 
     def add_person(self):
-        dialog = AddPersonDialog(self)
+        dialog = PersonAddDialog(self)
         if dialog.exec() == QDialog.DialogCode.Accepted:
             self.load_data()
 
@@ -86,7 +87,79 @@ class CemeteryApp(QMainWindow):
         dialog = PersonDetailsDialog(person_id, self)
         dialog.exec()
 
-class AddPersonDialog(QDialog):
+     
+    def load_cemeteries(self):
+        connection = sqlite3.connect(DB_PATH)
+        cursor = connection.cursor()
+        cursor.execute("SELECT Title FROM Cemetery")
+        cemeteries = cursor.fetchall()
+        connection.close()
+
+        self.cemetery_combo.addItems([cemetery[0] for cemetery in cemeteries])
+
+class PersonDetailsDialog(QDialog):
+    def __init__(self, person_id, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle(f"Details for Person ID {person_id}")
+        self.setGeometry(200, 200, 400, 600)
+
+        layout = QVBoxLayout()
+
+        # Query details
+        connection = sqlite3.connect(DB_PATH)
+        cursor = connection.cursor()
+
+        query = """
+        SELECT Person.FullName, Person.YearsOfLife, Cemetery.Title, GeoSpot.XCords, GeoSpot.YCords, Person.ImageLink
+        FROM Person
+        JOIN GeoSpot ON Person.GeoSpot_id = GeoSpot.id
+        JOIN Cemetery ON GeoSpot.Cemetery_id = Cemetery.id
+        WHERE Person.id = ?
+        """
+        cursor.execute(query, (person_id,))
+        details = cursor.fetchone()
+
+        if details:
+            image_link = details[5]
+            if image_link:
+                pixmap = QPixmap(image_link)
+                if not pixmap.isNull():  # Ensure the image is valid
+                    image_label = QLabel()
+                    image_label.setPixmap(pixmap.scaled(200, 200, Qt.AspectRatioMode.KeepAspectRatio))
+                    layout.addWidget(image_label)
+                else:
+                    layout.addWidget(QLabel("Invalid image link."))
+            else:
+                layout.addWidget(QLabel("No image available."))
+
+            layout.addWidget(QLabel(f"Full Name: {details[0]}"))
+            layout.addWidget(QLabel(f"Years of Life: {details[1]}"))
+            layout.addWidget(QLabel(f"Cemetery: {details[2]}"))
+            layout.addWidget(QLabel(f"Coordinates: ({details[3]}, {details[4]})"))
+
+            # Query descendants
+            cursor.execute("""
+            SELECT Descendant.FullName, Descendant.ContactNumber
+            FROM Descendant
+            JOIN Person_Descendant ON Descendant.id = Person_Descendant.Descendant_id
+            JOIN Person ON Person_Descendant.Person_id = Person.id
+            WHERE Person.id = ?
+            """, (person_id,))
+            descendants = cursor.fetchall()
+
+            layout.addWidget(QLabel("Descendants:"))
+            if descendants:
+                for descendant in descendants:
+                    layout.addWidget(QLabel(f"- {descendant[0]} (Contact: {descendant[1]})"))
+            else:
+                layout.addWidget(QLabel("No descendants found."))
+
+        else:
+            layout.addWidget(QLabel("Details not found."))
+
+        connection.close()
+
+class PersonAddDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Add New Person")
@@ -168,6 +241,8 @@ class AddPersonDialog(QDialog):
         connection.close()
 
         self.accept()
+
+
 
 class AddCemeteryDialog(QDialog):
     def __init__(self, parent=None):
@@ -256,7 +331,7 @@ class PersonDetailsDialog(QDialog):
     def __init__(self, person_id, parent=None):
         super().__init__(parent)
         self.setWindowTitle(f"Details for Person ID {person_id}")
-        self.setGeometry(200, 200, 400, 400)
+        self.setGeometry(100, 100, 250, 250)
 
         layout = QVBoxLayout()
 
@@ -265,7 +340,7 @@ class PersonDetailsDialog(QDialog):
         cursor = connection.cursor()
 
         query = """
-        SELECT Person.FullName, Person.YearsOfLife, Cemetery.Title, GeoSpot.XCords, GeoSpot.YCords
+        SELECT Person.FullName, Person.YearsOfLife, Cemetery.Title, GeoSpot.XCords, GeoSpot.YCords, Person.ImageLink
         FROM Person
         JOIN GeoSpot ON Person.GeoSpot_id = GeoSpot.id
         JOIN Cemetery ON GeoSpot.Cemetery_id = Cemetery.id
@@ -275,11 +350,21 @@ class PersonDetailsDialog(QDialog):
         details = cursor.fetchone()
 
         if details:
+            image_link = details[5]
+            pixmap = QPixmap(image_link)
+            if not pixmap.isNull():  
+                image_label = QLabel()
+                image_label.setPixmap(pixmap.scaled(200, 200, Qt.AspectRatioMode.KeepAspectRatio))
+                image_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                layout.addWidget(image_label)
+            else:
+                layout.addWidget(QLabel("Изображение не найдено"))
+
+            
             layout.addWidget(QLabel(f"Full Name: {details[0]}"))
             layout.addWidget(QLabel(f"Years of Life: {details[1]}"))
             layout.addWidget(QLabel(f"Cemetery: {details[2]}"))
             layout.addWidget(QLabel(f"Coordinates: ({details[3]}, {details[4]})"))
-
             # Query descendants
             cursor.execute("""
             SELECT Descendant.FullName, Descendant.ContactNumber
