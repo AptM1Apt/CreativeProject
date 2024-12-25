@@ -10,6 +10,7 @@ import sqlite3
 DB_PATH = "CemeteryLookUp.db"
 
 class CemeteryApp(QMainWindow):
+    sort = 'id'
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Cemetery Lookup")
@@ -17,6 +18,16 @@ class CemeteryApp(QMainWindow):
 
         # Main Layout
         layout = QVBoxLayout()
+
+        #Sort Buttons Layout 
+        sort_layout = QHBoxLayout()
+        self.add_sort_person_button = QPushButton("Sort by Person")
+        self.add_sort_cemetery_button = QPushButton("Sort by Cemetery")
+        self.add_sort_person_button.clicked.connect(self.SortPerson)
+        self.add_sort_cemetery_button.clicked.connect(self.SortCemetery)
+        sort_layout.addWidget(self.add_sort_person_button)
+        sort_layout.addWidget(self.add_sort_cemetery_button)
+        layout.addLayout(sort_layout)
 
         # Table Widget
         self.table = QTableWidget()
@@ -26,17 +37,37 @@ class CemeteryApp(QMainWindow):
         layout.addWidget(self.table)
 
         # Buttons Layout
-        button_layout = QHBoxLayout()
+        Buttons = QVBoxLayout()
+        add_button_layout = QHBoxLayout() #upper row
+        delete_button_layout = QHBoxLayout() #downer (is this even a word?) row 
+
+        # adding
         self.add_person_button = QPushButton("Add Person")
         self.add_cemetery_button = QPushButton("Add Cemetery")
+        self.add_descendant_button = QPushButton("Add Descendent")
+        # deleting
         self.delete_person_button = QPushButton("Delete Person")
+        self.delete_descendant_button = QPushButton("Delete Descendant")
+        
+        #connecting 
+        #connecting add
         self.add_person_button.clicked.connect(self.add_person)
         self.add_cemetery_button.clicked.connect(self.add_cemetery)
+        self.add_descendant_button.clicked.connect(self.add_descendant)
+        #connecting delete
         self.delete_person_button.clicked.connect(self.delete_person)
-        button_layout.addWidget(self.add_person_button)
-        button_layout.addWidget(self.add_cemetery_button)
-        button_layout.addWidget(self.delete_person_button)
-        layout.addLayout(button_layout)
+        self.delete_descendant_button.clicked.connect(self.delete_descendant)
+
+        #laying on layout buttons 
+        add_button_layout.addWidget(self.add_person_button)
+        add_button_layout.addWidget(self.add_cemetery_button)
+        add_button_layout.addWidget(self.add_descendant_button)
+        delete_button_layout.addWidget(self.delete_person_button)
+        delete_button_layout.addWidget(self.delete_descendant_button)
+
+        Buttons.addLayout(add_button_layout)
+        Buttons.addLayout(delete_button_layout)
+        layout.addLayout(Buttons)
 
         # Central Widget
         central_widget = QWidget()
@@ -55,9 +86,10 @@ class CemeteryApp(QMainWindow):
         FROM Person
         JOIN GeoSpot ON Person.GeoSpot_id = GeoSpot.id
         JOIN Cemetery ON GeoSpot.Cemetery_id = Cemetery.id
+        ORDER BY ? 
         """
         
-        cursor.execute(query)
+        cursor.execute(query, (CemeteryApp.sort, ))
         rows = cursor.fetchall()
         connection.close()
 
@@ -66,6 +98,38 @@ class CemeteryApp(QMainWindow):
         for row_idx, row_data in enumerate(rows):
             for col_idx, col_data in enumerate(row_data):
                 self.table.setItem(row_idx, col_idx, QTableWidgetItem(str(col_data)))
+
+    def SortPerson(self):
+        if CemeteryApp.sort != "Person.FullName ASC" and CemeteryApp.sort != "Person.FullName DESC":
+            CemeteryApp.sort = "Person.FullName ASC"
+            self.add_sort_person_button.setStyleSheet("background-color : green")
+            self.add_sort_cemetery_button.setStyleSheet("background-color : gray")
+            self.load_data()
+        elif CemeteryApp.sort != "Person.FullName DESC":
+            CemeteryApp.sort = "Person.FullName DESC"
+            self.add_sort_person_button.setStyleSheet("background-color : red")
+            self.add_sort_cemetery_button.setStyleSheet("background-color : gray")
+            self.load_data()
+        else:
+            CemeteryApp.sort = "id"
+            self.add_sort_person_button.setStyleSheet("background-color : gray")
+            self.load_data()
+
+    def SortCemetery(self):
+        if CemeteryApp.sort != "Cemetery.Title ASC" and CemeteryApp.sort != "Cemetery.Title DESC":
+            CemeteryApp.sort = "Cemetery.Title ASC"
+            self.add_sort_cemetery_button.setStyleSheet("background-color : green")
+            self.add_sort_person_button.setStyleSheet("background-color : gray")
+            self.load_data()
+        elif CemeteryApp.sort != "Cemetery.Title DESC":
+            CemeteryApp.sort = "Cemetery.Title DESC"
+            self.add_sort_cemetery_button.setStyleSheet("background-color : red")
+            self.add_sort_person_button.setStyleSheet("background-color : gray")
+            self.load_data()
+        else:
+            CemeteryApp.sort = "id"
+            self.add_sort_cemetery_button.setStyleSheet("background-color : gray")
+            self.load_data()
 
     def add_person(self):
         dialog = PersonAddDialog(self)
@@ -77,8 +141,18 @@ class CemeteryApp(QMainWindow):
         if dialog.exec() == QDialog.DialogCode.Accepted:
             self.load_data()
 
+    def add_descendant(self):
+        dialog = AddDescendantDialog(self)
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            self.load_data()
+
     def delete_person(self):
         dialog = DeletePersonDialog(self)
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            self.load_data()
+
+    def delete_descendant(self):
+        dialog = DeleteDescendantDialog(self)
         if dialog.exec() == QDialog.DialogCode.Accepted:
             self.load_data()
 
@@ -242,7 +316,48 @@ class PersonAddDialog(QDialog):
 
         self.accept()
 
+class AddDescendantDialog(QDialog):
+    def __init__(self, parent =None):
+        super().__init__(parent)
+        self.setWindowTitle("Add New Cemetery")
+        self.setGeometry(200, 200, 300, 200)
 
+        layout = QVBoxLayout()
+
+        self.FullName_input = QLineEdit()
+        self.FullName_input.setPlaceholderText("Full name of descendant")
+        self.ContactNumber_input = QLineEdit()
+        self.ContactNumber_input.setPlaceholderText("Contact number of descendant")
+
+        self.add_button = QPushButton("Add")
+        self.add_button.clicked.connect(self.add_descendant)
+
+        layout.addWidget(QLabel("Descendant Full Name:"))
+        layout.addWidget(self.FullName_input)
+        layout.addWidget(QLabel("Contact Number Of Descendant:"))
+        layout.addWidget(self.ContactNumber_input)
+        layout.addWidget(self.add_button)
+
+        self.setLayout(layout)
+    
+    def add_descendant(self):
+        FullName = self.FullName_input.text()
+        ContactNumber = self.ContactNumber_input.text()
+
+        if not FullName or not ContactNumber:
+            QMessageBox.warning(self, "Error", "All fields must be filled out.")
+            return
+        
+        connection = sqlite3.connect(DB_PATH)
+        cursor = connection.cursor()
+
+        cursor.execute("INSERT INTO Descendant (FullName, ContactNumber) VALUES (?, ?)",
+                       (FullName, ContactNumber))
+        connection.commit()
+        connection.close()
+
+        self.accept()
+        
 
 class AddCemeteryDialog(QDialog):
     def __init__(self, parent=None):
@@ -326,6 +441,30 @@ class DeletePersonDialog(QDialog):
         connection.close()
 
         self.accept()
+
+class DeleteDescendantDialog(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Delete Person")
+        self.setGeometry(200, 200, 300, 150)
+
+        layout = QVBoxLayout()
+
+        layout = QVBoxLayout()
+
+        self.id_combo = QComboBox()
+        self.load_descendants()
+
+        self.delete_button = QPushButton("Delete")
+        self.delete_button.clicked.connect(self.delete_person)
+
+        self.accept()
+
+        def load_descendant(self):
+            connection = sqlite3.connect(DB_PATH)
+            cursor = connection.cursor()
+            cursor.execute("SELECT ID, FullName FROM Descendant") 
+
 
 class PersonDetailsDialog(QDialog):
     def __init__(self, person_id, parent=None):
