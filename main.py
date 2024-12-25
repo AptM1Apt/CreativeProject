@@ -10,7 +10,7 @@ import sqlite3
 DB_PATH = "CemeteryLookUp.db"
 
 class CemeteryApp(QMainWindow):
-    sort = 'id'
+    sort = 'Person.id'
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Cemetery Lookup")
@@ -81,15 +81,16 @@ class CemeteryApp(QMainWindow):
         connection = sqlite3.connect(DB_PATH)
         cursor = connection.cursor()
 
-        query = """
+        # Формируем запрос с подставленным именем столбца
+        query = f"""
         SELECT Person.id, Person.FullName, Cemetery.Title, Person.YearsOfLife
         FROM Person
         JOIN GeoSpot ON Person.GeoSpot_id = GeoSpot.id
         JOIN Cemetery ON GeoSpot.Cemetery_id = Cemetery.id
-        ORDER BY ? 
+        ORDER BY {CemeteryApp.sort}
         """
-        
-        cursor.execute(query, (CemeteryApp.sort, ))
+
+        cursor.execute(query)
         rows = cursor.fetchall()
         connection.close()
 
@@ -99,37 +100,35 @@ class CemeteryApp(QMainWindow):
             for col_idx, col_data in enumerate(row_data):
                 self.table.setItem(row_idx, col_idx, QTableWidgetItem(str(col_data)))
 
+
     def SortPerson(self):
         if CemeteryApp.sort != "Person.FullName ASC" and CemeteryApp.sort != "Person.FullName DESC":
             CemeteryApp.sort = "Person.FullName ASC"
             self.add_sort_person_button.setStyleSheet("background-color : green")
             self.add_sort_cemetery_button.setStyleSheet("background-color : gray")
-            self.load_data()
-        elif CemeteryApp.sort != "Person.FullName DESC":
+        elif CemeteryApp.sort == "Person.FullName ASC":
             CemeteryApp.sort = "Person.FullName DESC"
             self.add_sort_person_button.setStyleSheet("background-color : red")
             self.add_sort_cemetery_button.setStyleSheet("background-color : gray")
-            self.load_data()
         else:
-            CemeteryApp.sort = "id"
+            CemeteryApp.sort = "Person.id"
             self.add_sort_person_button.setStyleSheet("background-color : gray")
-            self.load_data()
+        self.load_data()
 
     def SortCemetery(self):
         if CemeteryApp.sort != "Cemetery.Title ASC" and CemeteryApp.sort != "Cemetery.Title DESC":
             CemeteryApp.sort = "Cemetery.Title ASC"
             self.add_sort_cemetery_button.setStyleSheet("background-color : green")
             self.add_sort_person_button.setStyleSheet("background-color : gray")
-            self.load_data()
-        elif CemeteryApp.sort != "Cemetery.Title DESC":
+        elif CemeteryApp.sort == "Cemetery.Title ASC":
             CemeteryApp.sort = "Cemetery.Title DESC"
             self.add_sort_cemetery_button.setStyleSheet("background-color : red")
             self.add_sort_person_button.setStyleSheet("background-color : gray")
-            self.load_data()
         else:
-            CemeteryApp.sort = "id"
+            CemeteryApp.sort = "Person.id"
             self.add_sort_cemetery_button.setStyleSheet("background-color : gray")
-            self.load_data()
+        self.load_data()
+
 
     def add_person(self):
         dialog = PersonAddDialog(self)
