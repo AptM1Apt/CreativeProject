@@ -313,8 +313,10 @@ class PersonAddDialog(QDialog):
 
         layout.addWidget(QLabel("Full Name:"))
         layout.addWidget(self.name_input)
-        layout.addWidget(QLabel("Years of Life:"))
-        layout.addWidget(self.years_input)
+        layout.addWidget(QLabel("Years of Birth:"))
+        layout.addWidget(self.years_of_birth_input)
+        layout.addWidget(QLabel("Years of Death:"))
+        layout.addWidget(self.years_of_death_input)
         layout.addWidget(QLabel("Cemetery:"))
         layout.addWidget(self.cemetery_combo)
         layout.addWidget(QLabel("X Coordinates:"))
@@ -336,12 +338,13 @@ class PersonAddDialog(QDialog):
 
     def add_person(self):
         full_name = self.name_input.text()
-        years_of_life = self.years_input.text()
+        years_of_birth = self.years_of_birth_input.text()
+        years_of_death = self.years_of_death_input.text()
         cemetery_name = self.cemetery_combo.currentText()
         x_cords = self.xcords_input.text()
         y_cords = self.ycords_input.text()
 
-        if not full_name or not years_of_life or not cemetery_name or not x_cords or not y_cords:
+        if not full_name or not years_of_birth or not years_of_death or not cemetery_name or not x_cords or not y_cords:
             QMessageBox.warning(self, "Error", "All fields must be filled out.")
             return
 
@@ -364,7 +367,7 @@ class PersonAddDialog(QDialog):
         geo_id = cursor.lastrowid
 
         # Insert into Person
-        cursor.execute("INSERT INTO Person (FullName, GeoSpot_id, YearsOfLife) VALUES (?, ?, ?)", (full_name, geo_id, years_of_life))
+        cursor.execute("INSERT INTO Person (FullName, GeoSpot_id, YearOfBirth, YearOfDeath) VALUES (?, ?, ?, ?)", (full_name, geo_id, years_of_birth, years_of_death))
         connection.commit()
         connection.close()
 
