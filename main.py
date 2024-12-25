@@ -57,6 +57,7 @@ class CemeteryApp(QMainWindow):
         self.add_descendant_button = QPushButton("Add Descendent")
         # deleting
         self.delete_person_button = QPushButton("Delete Person")
+        self.delete_cemetery_button = QPushButton("Delete Cemetery")
         self.delete_descendant_button = QPushButton("Delete Descendant")
         
         #connecting 
@@ -66,6 +67,7 @@ class CemeteryApp(QMainWindow):
         self.add_descendant_button.clicked.connect(self.add_descendant)
         #connecting delete
         self.delete_person_button.clicked.connect(self.delete_person)
+        self.delete_cemetery_button.clicked.connect(self.delete_cemetery)
         self.delete_descendant_button.clicked.connect(self.delete_descendant)
 
         #laying on layout buttons 
@@ -73,6 +75,7 @@ class CemeteryApp(QMainWindow):
         add_button_layout.addWidget(self.add_cemetery_button)
         add_button_layout.addWidget(self.add_descendant_button)
         delete_button_layout.addWidget(self.delete_person_button)
+        delete_button_layout.addWidget(self.delete_cemetery_button)
         delete_button_layout.addWidget(self.delete_descendant_button)
 
         Buttons.addLayout(add_button_layout)
@@ -200,6 +203,11 @@ class CemeteryApp(QMainWindow):
 
     def delete_person(self):
         dialog = DeletePersonDialog(self)
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            self.load_data()
+
+    def delete_cemetery(self):
+        dialog = DeleteCemeteryDialog(self)
         if dialog.exec() == QDialog.DialogCode.Accepted:
             self.load_data()
 
@@ -485,18 +493,31 @@ class DeletePersonDialog(QDialog):
     def delete_person(self):
         person_id = self.id_input.text()
 
+        # Проверка: ID должен быть числом
         if not person_id.isdigit():
-            QMessageBox.warning(self, "Error", "Invalid ID format.")
+            QMessageBox.warning(self, "Error", "Invalid ID format. Please enter a numeric ID.")
             return
 
         connection = sqlite3.connect(DB_PATH)
         cursor = connection.cursor()
 
+        # Проверка существования записи с данным ID
+        cursor.execute("SELECT 1 FROM Person WHERE id = ?", (person_id,))
+        result = cursor.fetchone()
+
+        if result is None:
+            QMessageBox.warning(self, "Error", f"No person found with ID {person_id}.")
+            connection.close()
+            return
+
+        # Удаление записи
         cursor.execute("DELETE FROM Person WHERE id = ?", (person_id,))
         connection.commit()
         connection.close()
 
+        QMessageBox.information(self, "Success", f"Person with ID {person_id} was successfully deleted.")
         self.accept()
+
 
 class DeleteDescendantDialog(QDialog):
     def __init__(self, parent=None):
@@ -520,6 +541,53 @@ class DeleteDescendantDialog(QDialog):
             connection = sqlite3.connect(DB_PATH)
             cursor = connection.cursor()
             cursor.execute("SELECT ID, FullName FROM Descendant") 
+
+class DeleteCemeteryDialog(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Delete Person")
+        self.setGeometry(200, 200, 300, 150)
+
+        layout = QVBoxLayout()
+
+        self.cemetery_combo = QComboBox()
+        self.load_cemeteries()
+
+        self.delete_button = QPushButton("Delete")
+        self.delete_button.clicked.connect(self.delete_person)
+
+        layout.addWidget(QLabel("Cemetery:"))
+        layout.addWidget(self.cemetery_combo)
+        layout.addWidget(self.delete_button)
+
+        self.setLayout(layout)
+
+    def load_cemeteries(self):
+        connection = sqlite3.connect(DB_PATH)
+        cursor = connection.cursor()
+        cursor.execute("SELECT id, Title FROM Cemetery")
+        cemeteries = cursor.fetchall()
+        connection.close()
+        self.cemetery_combo.addItems([" ".join(str(value) for value in cemetery) for cemetery in cemeteries])
+
+    def delete_person(self):
+        cemetery = self.cemetery_combo.currentText()
+        print(cemetery)
+        cemetery = cemetery.split()
+        print(cemetery)
+        cemetery_id = cemetery[0]
+        if not cemetery_id.isdigit():
+            QMessageBox.warning(self, "Error", "Invalid cemetery.")
+            return
+
+        connection = sqlite3.connect(DB_PATH)
+        cursor = connection.cursor()
+
+        cursor.execute("DELETE FROM cemetery WHERE id = ?", (cemetery_id,))
+        connection.commit()
+        connection.close()
+
+        self.accept()
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
