@@ -522,30 +522,53 @@ class DeletePersonDialog(QDialog):
 class DeleteDescendantDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("Delete Person")
+        self.setWindowTitle("Delete Descendant")
         self.setGeometry(200, 200, 300, 150)
 
         layout = QVBoxLayout()
 
-        layout = QVBoxLayout()
-
-        self.id_combo = QComboBox()
-        self.load_descendants()
+        self.descendant_combo = QComboBox()
+        self.load_descendant()
 
         self.delete_button = QPushButton("Delete")
-        self.delete_button.clicked.connect(self.delete_person)
+        self.delete_button.clicked.connect(self.delete_descendant)
+
+        layout.addWidget(QLabel("Descendant:"))
+        layout.addWidget(self.descendant_combo)
+        layout.addWidget(self.delete_button)
+
+        self.setLayout(layout)
+
+    def load_descendant(self):
+        connection = sqlite3.connect(DB_PATH)
+        cursor = connection.cursor()
+        cursor.execute("SELECT id, FullName FROM Descendant")
+        descendants = cursor.fetchall()
+        connection.close()
+        self.descendant_combo.addItems([" ".join(str(value) for value in descendant) for descendant in descendants])
+
+    def delete_descendant(self):
+        descendant = self.descendant_combo.currentText()
+        descendant = descendant.split()
+        descendant_id = descendant[0]
+        if not descendant_id.isdigit():
+            QMessageBox.warning(self, "Error", "Invalid descendant.")
+            return
+
+        connection = sqlite3.connect(DB_PATH)
+        cursor = connection.cursor()
+
+        cursor.execute("DELETE FROM Descendant WHERE id = ?", (descendant_id,))
+        connection.commit()
+        connection.close()
 
         self.accept()
 
-        def load_descendant(self):
-            connection = sqlite3.connect(DB_PATH)
-            cursor = connection.cursor()
-            cursor.execute("SELECT ID, FullName FROM Descendant") 
 
 class DeleteCemeteryDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("Delete Person")
+        self.setWindowTitle("Delete Cemetery")
         self.setGeometry(200, 200, 300, 150)
 
         layout = QVBoxLayout()
