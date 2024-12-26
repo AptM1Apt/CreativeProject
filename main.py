@@ -239,11 +239,12 @@ class PersonDetailsDialog(QDialog):
     def __init__(self, person_id, parent=None):
         super().__init__(parent)
         self.setWindowTitle(f"Edit Details for Person ID {person_id}")
-        self.setGeometry(200, 200, 300, 400)
+        self.setGeometry(200, 100, 400, 600)
         self.person_id = person_id
 
         layout = QVBoxLayout()
         self.inputs = {}
+        self.descendant_widgets = []
 
         # Query details
         connection = sqlite3.connect(DB_PATH)
@@ -258,23 +259,26 @@ class PersonDetailsDialog(QDialog):
         """
         cursor.execute(query, (person_id,))
         details = cursor.fetchone()
-        print(details)
+
         if details:
+            # Display image
             image_link = details[6]
             if image_link:
                 pixmap = QPixmap(image_link)
-                if not pixmap.isNull():  # Ensure the image is valid
+                if not pixmap.isNull():
                     image_label = QLabel()
                     image_label.setPixmap(pixmap.scaled(200, 200, Qt.AspectRatioMode.KeepAspectRatio))
                     image_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
                     layout.addWidget(image_label)
                 else:
-                    layout.addWidget(QLabel("Invalid image link."))
+                    layout.addWidget(QLabel("Image not found."))
             else:
                 layout.addWidget(QLabel("No image available."))
+
+            # Input fields
             labels = ["Full Name", "Year of Birth", "Year of Death", "Cemetery", "X Coordinates", "Y Coordinates"]
 
-            for label, value in zip(labels, details):
+            for label, value in zip(labels, details[:6]):
                 row_layout = QHBoxLayout()
                 label_widget = QLabel(label + ":")
                 input_widget = QLineEdit(str(value))
@@ -284,7 +288,39 @@ class PersonDetailsDialog(QDialog):
                 row_layout.addWidget(input_widget)
                 layout.addLayout(row_layout)
 
+        # Load descendants
+        descendant_query = """
+        SELECT Descendant.id, Descendant.FullName, Descendant.ContactNumber
+        FROM Descendant
+        JOIN Person_Descendant ON Descendant.id = Person_Descendant.Descendant_id
+        WHERE Person_Descendant.Person_id = ?
+        """
+        cursor.execute(descendant_query, (person_id,))
+        descendants = cursor.fetchall()
+
+        layout.addWidget(QLabel("Descendants:"))
+        self.descendants_layout = QVBoxLayout()
+        layout.addLayout(self.descendants_layout)
+
+        for descendant in descendants:
+            print(descendant)
+            descendant_combo = QComboBox()
+            descendant_combo.addItems(self.load_descendants())
+            descendant_combo.setCurrentText(f"{descendant[0]}: {descendant[1]}, {descendant[2]}")
+            self.descendants_layout.addWidget(descendant_combo)
+            self.descendant_widgets.append(descendant_combo)
+
         connection.close()
+
+        # Add and Remove Descendant Buttons
+        self.add_descendant_button = QPushButton("Add Descendant")
+        self.add_descendant_button.clicked.connect(self.add_descendant)
+
+        self.remove_descendant_button = QPushButton("Remove Last Descendant")
+        self.remove_descendant_button.clicked.connect(self.remove_last_descendant)
+
+        layout.addWidget(self.add_descendant_button)
+        layout.addWidget(self.remove_descendant_button)
 
         # Save Button
         save_button = QPushButton("Save")
@@ -292,6 +328,27 @@ class PersonDetailsDialog(QDialog):
         layout.addWidget(save_button)
 
         self.setLayout(layout)
+
+    def load_descendants(self):
+        connection = sqlite3.connect(DB_PATH)
+        cursor = connection.cursor()
+        cursor.execute("SELECT id, FullName, ContactNumber  FROM Descendant")
+        descendants = cursor.fetchall()
+        connection.close()
+
+        return [f"{descendant[0]}: {descendant[1]} {descendant[2]}" for descendant in descendants]
+
+    def add_descendant(self):
+        descendant_combo = QComboBox()
+        descendant_combo.addItems(self.load_descendants())
+        self.descendants_layout.addWidget(descendant_combo)
+        self.descendant_widgets.append(descendant_combo)
+
+    def remove_last_descendant(self):
+        if self.descendant_widgets:
+            last_descendant = self.descendant_widgets.pop()
+            self.descendants_layout.removeWidget(last_descendant)
+            last_descendant.deleteLater()
 
     def save_details(self):
         connection = sqlite3.connect(DB_PATH)
@@ -330,6 +387,13 @@ class PersonDetailsDialog(QDialog):
                 WHERE id = ?
             """, (full_name, year_of_birth, year_of_death, self.person_id))
 
+            # Update descendants
+            cursor.execute("DELETE FROM Person_Descendant WHERE Person_id = ?", (self.person_id,))
+            for descendant_combo in self.descendant_widgets:
+                descendant_id = descendant_combo.currentText().split(":")[0]
+                if descendant_id.isdigit():
+                    cursor.execute("INSERT INTO Person_Descendant (Person_id, Descendant_id) VALUES (?, ?)", (self.person_id, int(descendant_id)))
+
             connection.commit()
             QMessageBox.information(self, "Success", "Details updated successfully.")
             self.accept()
@@ -338,22 +402,21 @@ class PersonDetailsDialog(QDialog):
         finally:
             connection.close()
 
-
 class PersonAddDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Add New Person")
-        self.setGeometry(200, 200, 300, 300)
+        self.setGeometry(200, 200, 400, 400)
 
         layout = QVBoxLayout()
+        self.descendant_widgets = []
 
         self.name_input = QLineEdit()
         self.name_input.setPlaceholderText("Full Name")
         self.years_of_birth_input = QLineEdit()
-        self.years_of_birth_input.setPlaceholderText("Years of Birth")
+        self.years_of_birth_input.setPlaceholderText("Year of Birth")
         self.years_of_death_input = QLineEdit()
-        self.years_of_death_input.setPlaceholderText("Years of Birth")
-
+        self.years_of_death_input.setPlaceholderText("Year of Death")
 
         self.cemetery_combo = QComboBox()
         self.load_cemeteries()
@@ -363,14 +426,20 @@ class PersonAddDialog(QDialog):
         self.ycords_input = QLineEdit()
         self.ycords_input.setPlaceholderText("Y Coordinates")
 
-        self.add_button = QPushButton("Add")
+        self.add_descendant_button = QPushButton("Add Descendant")
+        self.add_descendant_button.clicked.connect(self.add_descendant)
+
+        self.remove_descendant_button = QPushButton("Remove Last Descendant")
+        self.remove_descendant_button.clicked.connect(self.remove_last_descendant)
+
+        self.add_button = QPushButton("Add Person")
         self.add_button.clicked.connect(self.add_person)
 
         layout.addWidget(QLabel("Full Name:"))
         layout.addWidget(self.name_input)
-        layout.addWidget(QLabel("Years of Birth:"))
+        layout.addWidget(QLabel("Year of Birth:"))
         layout.addWidget(self.years_of_birth_input)
-        layout.addWidget(QLabel("Years of Death:"))
+        layout.addWidget(QLabel("Year of Death:"))
         layout.addWidget(self.years_of_death_input)
         layout.addWidget(QLabel("Cemetery:"))
         layout.addWidget(self.cemetery_combo)
@@ -378,8 +447,14 @@ class PersonAddDialog(QDialog):
         layout.addWidget(self.xcords_input)
         layout.addWidget(QLabel("Y Coordinates:"))
         layout.addWidget(self.ycords_input)
-        layout.addWidget(self.add_button)
 
+        layout.addWidget(QLabel("Descendants:"))
+        self.descendants_layout = QVBoxLayout()
+        layout.addLayout(self.descendants_layout)
+        layout.addWidget(self.add_descendant_button)
+        layout.addWidget(self.remove_descendant_button)
+
+        layout.addWidget(self.add_button)
         self.setLayout(layout)
 
     def load_cemeteries(self):
@@ -390,6 +465,27 @@ class PersonAddDialog(QDialog):
         connection.close()
 
         self.cemetery_combo.addItems([cemetery[0] for cemetery in cemeteries])
+
+    def load_descendants(self):
+        connection = sqlite3.connect(DB_PATH)
+        cursor = connection.cursor()
+        cursor.execute("SELECT id, FullName FROM Descendant")
+        descendants = cursor.fetchall()
+        connection.close()
+
+        return [f"{descendant[0]}: {descendant[1]}" for descendant in descendants]
+
+    def add_descendant(self):
+        descendant_combo = QComboBox()
+        descendant_combo.addItems(self.load_descendants())
+        self.descendants_layout.addWidget(descendant_combo)
+        self.descendant_widgets.append(descendant_combo)
+
+    def remove_last_descendant(self):
+        if self.descendant_widgets:
+            last_descendant = self.descendant_widgets.pop()
+            self.descendants_layout.removeWidget(last_descendant)
+            last_descendant.deleteLater()
 
     def add_person(self):
         full_name = self.name_input.text()
@@ -423,10 +519,19 @@ class PersonAddDialog(QDialog):
 
         # Insert into Person
         cursor.execute("INSERT INTO Person (FullName, GeoSpot_id, YearOfBirth, YearOfDeath) VALUES (?, ?, ?, ?)", (full_name, geo_id, years_of_birth, years_of_death))
+        person_id = cursor.lastrowid
+
+        # Link descendants
+        for descendant_combo in self.descendant_widgets:
+            descendant_id = descendant_combo.currentText().split(":")[0]
+            if descendant_id.isdigit():
+                cursor.execute("INSERT INTO Person_Descendant (Person_id, Descendant_id) VALUES (?, ?)", (person_id, int(descendant_id)))
+
         connection.commit()
         connection.close()
 
         self.accept()
+
 
 class AddDescendantDialog(QDialog):
     def __init__(self, parent =None):
