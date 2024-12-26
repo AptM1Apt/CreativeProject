@@ -21,10 +21,10 @@ class CemeteryApp(QMainWindow):
 
         #Sort Buttons Layout 
         sort_layout = QHBoxLayout()
-        self.add_sort_person_button = QPushButton("Sort by Person")
-        self.add_sort_cemetery_button = QPushButton("Sort by Cemetery")
-        self.add_sort_years_of_birth_button = QPushButton("Sort by Birth")
-        self.add_sort_years_of_death_button = QPushButton("Sort by Death")
+        self.add_sort_person_button = QPushButton("Сортировка по человеку")
+        self.add_sort_cemetery_button = QPushButton("Сортировка по кладбищу")
+        self.add_sort_years_of_birth_button = QPushButton("Сортировка по дате рождения")
+        self.add_sort_years_of_death_button = QPushButton("Сортировка по дате смерти")
         self.add_sort_person_button.clicked.connect(self.SortPerson)
         self.add_sort_cemetery_button.clicked.connect(self.SortCemetery)
         self.add_sort_years_of_birth_button.clicked.connect(self.SortBirth)
@@ -53,15 +53,15 @@ class CemeteryApp(QMainWindow):
         misc_button_layout = QHBoxLayout() # EVEN DOWNER row 
 
         # adding
-        self.add_person_button = QPushButton("Add Person")
-        self.add_cemetery_button = QPushButton("Add Cemetery")
-        self.add_descendant_button = QPushButton("Add Descendent")
+        self.add_person_button = QPushButton("Добавить человека")
+        self.add_cemetery_button = QPushButton("Добавить кладбище")
+        self.add_descendant_button = QPushButton("Добавить родственника")
         # deleting
-        self.delete_person_button = QPushButton("Delete Person")
-        self.delete_cemetery_button = QPushButton("Delete Cemetery")
-        self.delete_descendant_button = QPushButton("Delete Descendant")
+        self.delete_person_button = QPushButton("Удалить человека")
+        self.delete_cemetery_button = QPushButton("Удалить кладбище")
+        self.delete_descendant_button = QPushButton("Удалить родственника")
         # MISC
-        self.search_person_button = QPushButton("Search Person")
+        self.search_person_button = QPushButton("Искать человека")
 
         #connecting 
         #connecting add
@@ -252,7 +252,7 @@ class CemeteryApp(QMainWindow):
 class PersonDetailsDialog(QDialog):
     def __init__(self, person_id, parent=None):
         super().__init__(parent)
-        self.setWindowTitle(f"Edit Details for Person ID {person_id}")
+        self.setWindowTitle(f"Правим детали человека под ID {person_id}")
         self.setGeometry(200, 100, 400, 600)
         self.person_id = person_id
 
@@ -285,12 +285,12 @@ class PersonDetailsDialog(QDialog):
                     image_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
                     layout.addWidget(image_label)
                 else:
-                    layout.addWidget(QLabel("Image not found."))
+                    layout.addWidget(QLabel("Картинки нет, добавьте папку картинку с нужным названием."))
             else:
-                layout.addWidget(QLabel("No image available."))
+                layout.addWidget(QLabel("Проблема с базой данных!"))
 
             # Input fields
-            labels = ["Full Name", "Year of Birth", "Year of Death", "Cemetery", "X Coordinates", "Y Coordinates"]
+            labels = ["Полное имя", "Год рождения", "Год смерти", "Кладбище", "Координаты по X", "Координаты по Y"]
 
             for label, value in zip(labels, details[:6]):
                 row_layout = QHBoxLayout()
@@ -312,7 +312,7 @@ class PersonDetailsDialog(QDialog):
         cursor.execute(descendant_query, (person_id,))
         descendants = cursor.fetchall()
 
-        layout.addWidget(QLabel("Descendants:"))
+        layout.addWidget(QLabel("Родственники:"))
         self.descendants_layout = QVBoxLayout()
         layout.addLayout(self.descendants_layout)
 
@@ -326,17 +326,17 @@ class PersonDetailsDialog(QDialog):
         connection.close()
 
         # Add and Remove Descendant Buttons
-        self.add_descendant_button = QPushButton("Add Descendant")
+        self.add_descendant_button = QPushButton("Добавить родственника")
         self.add_descendant_button.clicked.connect(self.add_descendant)
 
-        self.remove_descendant_button = QPushButton("Remove Last Descendant")
+        self.remove_descendant_button = QPushButton("Удалить родственника")
         self.remove_descendant_button.clicked.connect(self.remove_last_descendant)
 
         layout.addWidget(self.add_descendant_button)
         layout.addWidget(self.remove_descendant_button)
 
         # Save Button
-        save_button = QPushButton("Save")
+        save_button = QPushButton("Сохранить")
         save_button.clicked.connect(self.save_details)
         layout.addWidget(save_button)
 
@@ -369,19 +369,19 @@ class PersonDetailsDialog(QDialog):
 
         try:
             # Update Person details
-            full_name = self.inputs["Full Name"].text()
-            year_of_birth = self.inputs["Year of Birth"].text()
-            year_of_death = self.inputs["Year of Death"].text()
-            x_coords = self.inputs["X Coordinates"].text()
-            y_coords = self.inputs["Y Coordinates"].text()
+            full_name = self.inputs["Полное имя"].text()
+            year_of_birth = self.inputs["Год рождения"].text()
+            year_of_death = self.inputs["Год смерти"].text()
+            x_coords = self.inputs["Координаты по X"].text()
+            y_coords = self.inputs["Координаты по Y"].text()
 
             # Get Cemetery ID
-            cemetery_name = self.inputs["Cemetery"].text()
+            cemetery_name = self.inputs["Кладбище"].text()
             cursor.execute("SELECT id FROM Cemetery WHERE Title = ?", (cemetery_name,))
             cemetery = cursor.fetchone()
 
             if cemetery is None:
-                QMessageBox.warning(self, "Error", "Cemetery not found.")
+                QMessageBox.warning(self, "ОШИБКА!", "Кладбища не найдены")
                 return
 
             cemetery_id = cemetery[0]
@@ -408,10 +408,9 @@ class PersonDetailsDialog(QDialog):
                     cursor.execute("INSERT INTO Person_Descendant (Person_id, Descendant_id) VALUES (?, ?)", (self.person_id, int(descendant_id)))
 
             connection.commit()
-            QMessageBox.information(self, "Success", "Details updated successfully.")
             self.accept()
         except Exception as e:
-            QMessageBox.critical(self, "Error", f"An error occurred: {e}")
+            QMessageBox.critical(self, "Ошибка", f"Что-то пошло не так: {e}")
         finally:
             connection.close()
 
@@ -419,50 +418,50 @@ class PersonDetailsDialog(QDialog):
 class PersonAddDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("Add New Person")
+        self.setWindowTitle("Добавляем нового человека")
         self.setGeometry(200, 200, 400, 400)
 
         layout = QVBoxLayout()
         self.descendant_widgets = []
 
         self.name_input = QLineEdit()
-        self.name_input.setPlaceholderText("Full Name")
+        self.name_input.setPlaceholderText("Полное имя")
         self.years_of_birth_input = QLineEdit()
-        self.years_of_birth_input.setPlaceholderText("Year of Birth")
+        self.years_of_birth_input.setPlaceholderText("Год рождения")
         self.years_of_death_input = QLineEdit()
-        self.years_of_death_input.setPlaceholderText("Year of Death")
+        self.years_of_death_input.setPlaceholderText("Год смерти")
 
         self.cemetery_combo = QComboBox()
         self.load_cemeteries()
 
         self.xcords_input = QLineEdit()
-        self.xcords_input.setPlaceholderText("X Coordinates")
+        self.xcords_input.setPlaceholderText("Координаты по X")
         self.ycords_input = QLineEdit()
-        self.ycords_input.setPlaceholderText("Y Coordinates")
+        self.ycords_input.setPlaceholderText("Координаты по Y")
 
-        self.add_descendant_button = QPushButton("Add Descendant")
+        self.add_descendant_button = QPushButton("Добавить родственника")
         self.add_descendant_button.clicked.connect(self.add_descendant)
 
-        self.remove_descendant_button = QPushButton("Remove Last Descendant")
+        self.remove_descendant_button = QPushButton("Удалить последнего добавленного родственника")
         self.remove_descendant_button.clicked.connect(self.remove_last_descendant)
 
-        self.add_button = QPushButton("Add Person")
+        self.add_button = QPushButton("Добавить человека")
         self.add_button.clicked.connect(self.add_person)
 
-        layout.addWidget(QLabel("Full Name:"))
+        layout.addWidget(QLabel("Полное имя:"))
         layout.addWidget(self.name_input)
-        layout.addWidget(QLabel("Year of Birth:"))
+        layout.addWidget(QLabel("Год рождения:"))
         layout.addWidget(self.years_of_birth_input)
-        layout.addWidget(QLabel("Year of Death:"))
+        layout.addWidget(QLabel("Год смерти:"))
         layout.addWidget(self.years_of_death_input)
-        layout.addWidget(QLabel("Cemetery:"))
+        layout.addWidget(QLabel("Кладбище:"))
         layout.addWidget(self.cemetery_combo)
-        layout.addWidget(QLabel("X Coordinates:"))
+        layout.addWidget(QLabel("Координаты по X:"))
         layout.addWidget(self.xcords_input)
-        layout.addWidget(QLabel("Y Coordinates:"))
+        layout.addWidget(QLabel("Координаты по Y:"))
         layout.addWidget(self.ycords_input)
 
-        layout.addWidget(QLabel("Descendants:"))
+        layout.addWidget(QLabel("Родственники:"))
         self.descendants_layout = QVBoxLayout()
         layout.addLayout(self.descendants_layout)
         layout.addWidget(self.add_descendant_button)
@@ -510,7 +509,7 @@ class PersonAddDialog(QDialog):
         y_cords = self.ycords_input.text()
 
         if not full_name or not years_of_birth or not years_of_death or not cemetery_name or not x_cords or not y_cords:
-            QMessageBox.warning(self, "Error", "All fields must be filled out.")
+            QMessageBox.warning(self, "Ошибка!", "Все поля должны быть заполнены!")
             return
 
         connection = sqlite3.connect(DB_PATH)
@@ -521,7 +520,7 @@ class PersonAddDialog(QDialog):
         cemetery = cursor.fetchone()
 
         if cemetery is None:
-            QMessageBox.warning(self, "Error", "Cemetery not found.")
+            QMessageBox.warning(self, "Ошибка!", "Кладбище не найдено!")
             connection.close()
             return
 
@@ -549,22 +548,22 @@ class PersonAddDialog(QDialog):
 class AddDescendantDialog(QDialog):
     def __init__(self, parent =None):
         super().__init__(parent)
-        self.setWindowTitle("Add New Cemetery")
+        self.setWindowTitle("Добавить нового родственника")
         self.setGeometry(200, 200, 300, 200)
 
         layout = QVBoxLayout()
 
         self.FullName_input = QLineEdit()
-        self.FullName_input.setPlaceholderText("Full name of descendant")
+        self.FullName_input.setPlaceholderText("Полное имя родственника")
         self.ContactNumber_input = QLineEdit()
-        self.ContactNumber_input.setPlaceholderText("Contact number of descendant")
+        self.ContactNumber_input.setPlaceholderText("Контактный телефон родственника")
 
-        self.add_button = QPushButton("Add")
+        self.add_button = QPushButton("Добавить")
         self.add_button.clicked.connect(self.add_descendant)
 
-        layout.addWidget(QLabel("Descendant Full Name:"))
+        layout.addWidget(QLabel("Полное имя родственника:"))
         layout.addWidget(self.FullName_input)
-        layout.addWidget(QLabel("Contact Number Of Descendant:"))
+        layout.addWidget(QLabel("Контактный номер родственника:"))
         layout.addWidget(self.ContactNumber_input)
         layout.addWidget(self.add_button)
 
@@ -575,7 +574,7 @@ class AddDescendantDialog(QDialog):
         ContactNumber = self.ContactNumber_input.text()
 
         if not FullName or not ContactNumber:
-            QMessageBox.warning(self, "Error", "All fields must be filled out.")
+            QMessageBox.warning(self, "Ошибка!", "Все поля должны быть заполнены!")
             return
         
         connection = sqlite3.connect(DB_PATH)
@@ -591,26 +590,26 @@ class AddDescendantDialog(QDialog):
 class AddCemeteryDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("Add New Cemetery")
+        self.setWindowTitle("Добавить новое кладбище")
         self.setGeometry(200, 200, 300, 200)
 
         layout = QVBoxLayout()
 
         self.title_input = QLineEdit()
-        self.title_input.setPlaceholderText("Cemetery Title")
+        self.title_input.setPlaceholderText("Название кладбища")
         self.admin_contact_input = QLineEdit()
-        self.admin_contact_input.setPlaceholderText("Admin Contact Number")
+        self.admin_contact_input.setPlaceholderText("Контактный номер Начальника")
         self.guard_contact_input = QLineEdit()
-        self.guard_contact_input.setPlaceholderText("Guard Contact Number")
+        self.guard_contact_input.setPlaceholderText("Контактный номер Сторожа")
 
-        self.add_button = QPushButton("Add")
+        self.add_button = QPushButton("Добавить")
         self.add_button.clicked.connect(self.add_cemetery)
 
-        layout.addWidget(QLabel("Cemetery Title:"))
+        layout.addWidget(QLabel("Название кладбища:"))
         layout.addWidget(self.title_input)
-        layout.addWidget(QLabel("Admin Contact Number:"))
+        layout.addWidget(QLabel("Контактный номер Начальника:"))
         layout.addWidget(self.admin_contact_input)
-        layout.addWidget(QLabel("Guard Contact Number:"))
+        layout.addWidget(QLabel("Контактный номер Сторожа:"))
         layout.addWidget(self.guard_contact_input)
         layout.addWidget(self.add_button)
 
@@ -622,7 +621,7 @@ class AddCemeteryDialog(QDialog):
         guard_contact = self.guard_contact_input.text()
 
         if not title or not admin_contact or not guard_contact:
-            QMessageBox.warning(self, "Error", "All fields must be filled out.")
+            QMessageBox.warning(self, "Ошибка!", "Все поля должны быть заполнены!")
             return
 
         connection = sqlite3.connect(DB_PATH)
@@ -639,18 +638,18 @@ class AddCemeteryDialog(QDialog):
 class DeletePersonDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("Delete Person")
+        self.setWindowTitle("Удалить человека")
         self.setGeometry(200, 200, 300, 150)
 
         layout = QVBoxLayout()
 
         self.id_input = QLineEdit()
-        self.id_input.setPlaceholderText("Enter Person ID")
+        self.id_input.setPlaceholderText("Введите ID человека")
 
-        self.delete_button = QPushButton("Delete")
+        self.delete_button = QPushButton("Удалить")
         self.delete_button.clicked.connect(self.delete_person)
 
-        layout.addWidget(QLabel("Person ID:"))
+        layout.addWidget(QLabel("ID человека:"))
         layout.addWidget(self.id_input)
         layout.addWidget(self.delete_button)
 
@@ -661,7 +660,7 @@ class DeletePersonDialog(QDialog):
 
         # Проверка: ID должен быть числом
         if not person_id.isdigit():
-            QMessageBox.warning(self, "Error", "Invalid ID format. Please enter a numeric ID.")
+            QMessageBox.warning(self, "Ошибка!", "Вы ввели не число!")
             return
 
         connection = sqlite3.connect(DB_PATH)
@@ -672,7 +671,7 @@ class DeletePersonDialog(QDialog):
         result = cursor.fetchone()
 
         if result is None:
-            QMessageBox.warning(self, "Error", f"No person found with ID {person_id}.")
+            QMessageBox.warning(self, "Ошибка!", f"Нет человека под номером {person_id}.")
             connection.close()
             return
 
@@ -681,13 +680,13 @@ class DeletePersonDialog(QDialog):
         connection.commit()
         connection.close()
 
-        QMessageBox.information(self, "Success", f"Person with ID {person_id} was successfully deleted.")
+        QMessageBox.information(self, "Успех!", f"Человек с номером {person_id} был удален!")
         self.accept()
 
 class DeleteDescendantDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("Delete Descendant")
+        self.setWindowTitle("Удалить родственника")
         self.setGeometry(200, 200, 300, 150)
 
         layout = QVBoxLayout()
@@ -695,10 +694,10 @@ class DeleteDescendantDialog(QDialog):
         self.descendant_combo = QComboBox()
         self.load_descendant()
 
-        self.delete_button = QPushButton("Delete")
+        self.delete_button = QPushButton("Удалить")
         self.delete_button.clicked.connect(self.delete_descendant)
 
-        layout.addWidget(QLabel("Descendant:"))
+        layout.addWidget(QLabel("Родственник:"))
         layout.addWidget(self.descendant_combo)
         layout.addWidget(self.delete_button)
 
@@ -717,7 +716,7 @@ class DeleteDescendantDialog(QDialog):
         descendant = descendant.split()
         descendant_id = descendant[0]
         if not descendant_id.isdigit():
-            QMessageBox.warning(self, "Error", "Invalid descendant.")
+            QMessageBox.warning(self, "Ошибка", "Неверный ID родственника.")
             return
 
         connection = sqlite3.connect(DB_PATH)
@@ -732,7 +731,7 @@ class DeleteDescendantDialog(QDialog):
 class DeleteCemeteryDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("Delete Cemetery")
+        self.setWindowTitle("Удалить кладбище")
         self.setGeometry(200, 200, 300, 150)
 
         layout = QVBoxLayout()
@@ -740,10 +739,10 @@ class DeleteCemeteryDialog(QDialog):
         self.cemetery_combo = QComboBox()
         self.load_cemeteries()
 
-        self.delete_button = QPushButton("Delete")
-        self.delete_button.clicked.connect(self.delete_person)
+        self.delete_button = QPushButton("Удалить")
+        self.delete_button.clicked.connect(self.delete_cemetery)
 
-        layout.addWidget(QLabel("Cemetery:"))
+        layout.addWidget(QLabel("Кладбище:"))
         layout.addWidget(self.cemetery_combo)
         layout.addWidget(self.delete_button)
 
@@ -757,14 +756,12 @@ class DeleteCemeteryDialog(QDialog):
         connection.close()
         self.cemetery_combo.addItems([" ".join(str(value) for value in cemetery) for cemetery in cemeteries])
 
-    def delete_person(self):
+    def delete_cemetery(self):
         cemetery = self.cemetery_combo.currentText()
-        print(cemetery)
         cemetery = cemetery.split()
-        print(cemetery)
         cemetery_id = cemetery[0]
         if not cemetery_id.isdigit():
-            QMessageBox.warning(self, "Error", "Invalid cemetery.")
+            QMessageBox.warning(self, "Ошибка!", "Неверный ID кладбища.")
             return
 
         connection = sqlite3.connect(DB_PATH)
@@ -780,17 +777,17 @@ class DeleteCemeteryDialog(QDialog):
 class PersonSearchDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("Search Person")
+        self.setWindowTitle("Найти человека")
         self.setGeometry(200, 200, 400, 100)
 
         layout = QVBoxLayout()
         self.search_input = QLineEdit()
-        self.search_input.setPlaceholderText("Enter ID or Full Name")
+        self.search_input.setPlaceholderText("Введите ID или Полное Имя человека")
 
-        self.search_button = QPushButton("Search")
+        self.search_button = QPushButton("Найти")
         self.search_button.clicked.connect(self.search_person)
 
-        layout.addWidget(QLabel("Search by ID or Full Name:"))
+        layout.addWidget(QLabel("Найти человека по ID или Полному Имени"))
         layout.addWidget(self.search_input)
         layout.addWidget(self.search_button)
 
@@ -800,7 +797,7 @@ class PersonSearchDialog(QDialog):
         search_term = self.search_input.text()
 
         if not search_term:
-            QMessageBox.warning(self, "Error", "Please enter a search term.")
+            QMessageBox.warning(self, "Ошибка!", "Введите что-то в поисковую строку!")
             return
 
         connection = sqlite3.connect(DB_PATH)
@@ -820,7 +817,7 @@ class PersonSearchDialog(QDialog):
                 dialog = PersonDetailsDialog(person_id, self)
                 dialog.exec()
             else:
-                QMessageBox.information(self, "Not Found", "No matching person found.")
+                QMessageBox.information(self, "Ошибка", "Никто не был найден по вашему запросу.")
         finally:
             connection.close()
 

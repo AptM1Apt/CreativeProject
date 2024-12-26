@@ -207,6 +207,6 @@ END;
 
 cur.executescript(scr)
 
-print("Database setup complete!")
+print("База данных сброшена!")
 
 connection.close()
