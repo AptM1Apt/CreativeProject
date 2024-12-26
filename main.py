@@ -43,7 +43,7 @@ class CemeteryApp(QMainWindow):
         self.table = QTableWidget()
         self.table.setColumnCount(5)
         self.table.setHorizontalHeaderLabels(["ID", "Full Name", "Cemetery", "Years of Birth", "Years of Death"])
-        self.table.cellDoubleClicked.connect(self.open_details)
+        self.table.cellDoubleClicked.connect(self.RECopen_details)
         layout.addWidget(self.table)
 
         # Buttons Layout
@@ -216,6 +216,10 @@ class CemeteryApp(QMainWindow):
         if dialog.exec() == QDialog.DialogCode.Accepted:
             self.load_data()
 
+    def RECopen_details(self, row, column):
+        self.open_details(row, column)
+        self.load_data()
+
     def open_details(self, row, column):
         person_id = self.table.item(row, 0).text()
         dialog = PersonDetailsDialog(person_id, self)
@@ -234,10 +238,12 @@ class CemeteryApp(QMainWindow):
 class PersonDetailsDialog(QDialog):
     def __init__(self, person_id, parent=None):
         super().__init__(parent)
-        self.setWindowTitle(f"Details for Person ID {person_id}")
+        self.setWindowTitle(f"Edit Details for Person ID {person_id}")
         self.setGeometry(200, 200, 300, 400)
+        self.person_id = person_id
 
         layout = QVBoxLayout()
+        self.inputs = {}
 
         # Query details
         connection = sqlite3.connect(DB_PATH)
@@ -252,45 +258,86 @@ class PersonDetailsDialog(QDialog):
         """
         cursor.execute(query, (person_id,))
         details = cursor.fetchone()
+        print(details)
         if details:
             image_link = details[6]
-            pixmap = QPixmap(image_link)
-            if not pixmap.isNull():  
-                image_label = QLabel()
-                image_label.setPixmap(pixmap.scaled(200, 200, Qt.AspectRatioMode.KeepAspectRatio))
-                image_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-                layout.addWidget(image_label)
+            if image_link:
+                pixmap = QPixmap(image_link)
+                if not pixmap.isNull():  # Ensure the image is valid
+                    image_label = QLabel()
+                    image_label.setPixmap(pixmap.scaled(200, 200, Qt.AspectRatioMode.KeepAspectRatio))
+                    image_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                    layout.addWidget(image_label)
+                else:
+                    layout.addWidget(QLabel("Invalid image link."))
             else:
-                layout.addWidget(QLabel("Изображение не найдено"))
+                layout.addWidget(QLabel("No image available."))
+            labels = ["Full Name", "Year of Birth", "Year of Death", "Cemetery", "X Coordinates", "Y Coordinates"]
 
+            for label, value in zip(labels, details):
+                row_layout = QHBoxLayout()
+                label_widget = QLabel(label + ":")
+                input_widget = QLineEdit(str(value))
+                self.inputs[label] = input_widget
 
-            layout.addWidget(QLabel(f"Full Name: {details[0]}"))
-            layout.addWidget(QLabel(f"Years of Life: {details[1]} - {details[2]}"))
-            layout.addWidget(QLabel(f"Cemetery: {details[3]}"))
-            layout.addWidget(QLabel(f"Coordinates: ({details[4]}, {details[5]})"))
-            # Query descendants
-            cursor.execute("""
-            SELECT Descendant.FullName, Descendant.ContactNumber
-            FROM Descendant
-            JOIN Person_Descendant ON Descendant.id = Person_Descendant.Descendant_id
-            JOIN Person ON Person_Descendant.Person_id = Person.id
-            WHERE Person.id = ?
-            """, (person_id,))
-            descendants = cursor.fetchall()
-
-            layout.addWidget(QLabel("Descendants:"))
-            if descendants:
-                for descendant in descendants:
-                    layout.addWidget(QLabel(f"- {descendant[0]} (Contact: {descendant[1]})"))
-            else:
-                layout.addWidget(QLabel("No descendants found."))
-
-        else:
-            layout.addWidget(QLabel("Details not found."))
+                row_layout.addWidget(label_widget)
+                row_layout.addWidget(input_widget)
+                layout.addLayout(row_layout)
 
         connection.close()
 
+        # Save Button
+        save_button = QPushButton("Save")
+        save_button.clicked.connect(self.save_details)
+        layout.addWidget(save_button)
+
         self.setLayout(layout)
+
+    def save_details(self):
+        connection = sqlite3.connect(DB_PATH)
+        cursor = connection.cursor()
+
+        try:
+            # Update Person details
+            full_name = self.inputs["Full Name"].text()
+            year_of_birth = self.inputs["Year of Birth"].text()
+            year_of_death = self.inputs["Year of Death"].text()
+            x_coords = self.inputs["X Coordinates"].text()
+            y_coords = self.inputs["Y Coordinates"].text()
+
+            # Get Cemetery ID
+            cemetery_name = self.inputs["Cemetery"].text()
+            cursor.execute("SELECT id FROM Cemetery WHERE Title = ?", (cemetery_name,))
+            cemetery = cursor.fetchone()
+
+            if cemetery is None:
+                QMessageBox.warning(self, "Error", "Cemetery not found.")
+                return
+
+            cemetery_id = cemetery[0]
+
+            # Update GeoSpot
+            cursor.execute("""
+                UPDATE GeoSpot 
+                SET XCords = ?, YCords = ?, Cemetery_id = ?
+                WHERE id = (SELECT GeoSpot_id FROM Person WHERE id = ?)
+            """, (x_coords, y_coords, cemetery_id, self.person_id))
+
+            # Update Person
+            cursor.execute("""
+                UPDATE Person 
+                SET FullName = ?, YearOfBirth = ?, YearOfDeath = ?
+                WHERE id = ?
+            """, (full_name, year_of_birth, year_of_death, self.person_id))
+
+            connection.commit()
+            QMessageBox.information(self, "Success", "Details updated successfully.")
+            self.accept()
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"An error occurred: {e}")
+        finally:
+            connection.close()
+
 
 class PersonAddDialog(QDialog):
     def __init__(self, parent=None):
