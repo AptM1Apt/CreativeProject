@@ -50,6 +50,7 @@ class CemeteryApp(QMainWindow):
         Buttons = QVBoxLayout()
         add_button_layout = QHBoxLayout() #upper row
         delete_button_layout = QHBoxLayout() #downer (is this even a word?) row 
+        misc_button_layout = QHBoxLayout() # EVEN DOWNER row 
 
         # adding
         self.add_person_button = QPushButton("Add Person")
@@ -59,7 +60,9 @@ class CemeteryApp(QMainWindow):
         self.delete_person_button = QPushButton("Delete Person")
         self.delete_cemetery_button = QPushButton("Delete Cemetery")
         self.delete_descendant_button = QPushButton("Delete Descendant")
-        
+        # MISC
+        self.search_person_button = QPushButton("Search Person")
+
         #connecting 
         #connecting add
         self.add_person_button.clicked.connect(self.add_person)
@@ -69,6 +72,8 @@ class CemeteryApp(QMainWindow):
         self.delete_person_button.clicked.connect(self.delete_person)
         self.delete_cemetery_button.clicked.connect(self.delete_cemetery)
         self.delete_descendant_button.clicked.connect(self.delete_descendant)
+        #connecting misc 
+        self.search_person_button.clicked.connect(self.search_person) 
 
         #laying on layout buttons 
         add_button_layout.addWidget(self.add_person_button)
@@ -77,9 +82,11 @@ class CemeteryApp(QMainWindow):
         delete_button_layout.addWidget(self.delete_person_button)
         delete_button_layout.addWidget(self.delete_cemetery_button)
         delete_button_layout.addWidget(self.delete_descendant_button)
+        misc_button_layout.addWidget(self.search_person_button)
 
         Buttons.addLayout(add_button_layout)
         Buttons.addLayout(delete_button_layout)
+        Buttons.addLayout(misc_button_layout)
         layout.addLayout(Buttons)
 
         # Central Widget
@@ -113,7 +120,7 @@ class CemeteryApp(QMainWindow):
             for col_idx, col_data in enumerate(row_data):
                 self.table.setItem(row_idx, col_idx, QTableWidgetItem(str(col_data)))
 
-
+    # Sorting our coffins 
     def SortPerson(self):
         if CemeteryApp.sort != "Person.FullName ASC" and CemeteryApp.sort != "Person.FullName DESC":
             CemeteryApp.sort = "Person.FullName ASC"
@@ -186,6 +193,7 @@ class CemeteryApp(QMainWindow):
             self.add_sort_years_of_death_button.setStyleSheet("background-color : gray")
         self.load_data()
 
+    # Adding 
     def add_person(self):
         dialog = PersonAddDialog(self)
         if dialog.exec() == QDialog.DialogCode.Accepted:
@@ -201,6 +209,7 @@ class CemeteryApp(QMainWindow):
         if dialog.exec() == QDialog.DialogCode.Accepted:
             self.load_data()
 
+    # Deleting
     def delete_person(self):
         dialog = DeletePersonDialog(self)
         if dialog.exec() == QDialog.DialogCode.Accepted:
@@ -216,6 +225,7 @@ class CemeteryApp(QMainWindow):
         if dialog.exec() == QDialog.DialogCode.Accepted:
             self.load_data()
 
+    # Looking
     def RECopen_details(self, row, column):
         self.open_details(row, column)
         self.load_data()
@@ -225,7 +235,7 @@ class CemeteryApp(QMainWindow):
         dialog = PersonDetailsDialog(person_id, self)
         dialog.exec()
 
-     
+    # MISC 
     def load_cemeteries(self):
         connection = sqlite3.connect(DB_PATH)
         cursor = connection.cursor()
@@ -235,6 +245,10 @@ class CemeteryApp(QMainWindow):
 
         self.cemetery_combo.addItems([cemetery[0] for cemetery in cemeteries])
 
+    def search_person(self):
+        dialog = PersonSearchDialog(self)
+        dialog.exec()
+# LOOKING
 class PersonDetailsDialog(QDialog):
     def __init__(self, person_id, parent=None):
         super().__init__(parent)
@@ -303,7 +317,6 @@ class PersonDetailsDialog(QDialog):
         layout.addLayout(self.descendants_layout)
 
         for descendant in descendants:
-            print(descendant)
             descendant_combo = QComboBox()
             descendant_combo.addItems(self.load_descendants())
             descendant_combo.setCurrentText(f"{descendant[0]}: {descendant[1]}, {descendant[2]}")
@@ -402,6 +415,7 @@ class PersonDetailsDialog(QDialog):
         finally:
             connection.close()
 
+# ADDING
 class PersonAddDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -532,7 +546,6 @@ class PersonAddDialog(QDialog):
 
         self.accept()
 
-
 class AddDescendantDialog(QDialog):
     def __init__(self, parent =None):
         super().__init__(parent)
@@ -622,6 +635,7 @@ class AddCemeteryDialog(QDialog):
 
         self.accept()
 
+# DELETING
 class DeletePersonDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -670,7 +684,6 @@ class DeletePersonDialog(QDialog):
         QMessageBox.information(self, "Success", f"Person with ID {person_id} was successfully deleted.")
         self.accept()
 
-
 class DeleteDescendantDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -715,7 +728,6 @@ class DeleteDescendantDialog(QDialog):
         connection.close()
 
         self.accept()
-
 
 class DeleteCemeteryDialog(QDialog):
     def __init__(self, parent=None):
@@ -763,6 +775,55 @@ class DeleteCemeteryDialog(QDialog):
         connection.close()
 
         self.accept()
+
+# MISC
+class PersonSearchDialog(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Search Person")
+        self.setGeometry(200, 200, 400, 100)
+
+        layout = QVBoxLayout()
+        self.search_input = QLineEdit()
+        self.search_input.setPlaceholderText("Enter ID or Full Name")
+
+        self.search_button = QPushButton("Search")
+        self.search_button.clicked.connect(self.search_person)
+
+        layout.addWidget(QLabel("Search by ID or Full Name:"))
+        layout.addWidget(self.search_input)
+        layout.addWidget(self.search_button)
+
+        self.setLayout(layout)
+
+    def search_person(self):
+        search_term = self.search_input.text()
+
+        if not search_term:
+            QMessageBox.warning(self, "Error", "Please enter a search term.")
+            return
+
+        connection = sqlite3.connect(DB_PATH)
+        cursor = connection.cursor()
+
+        try:
+            if search_term.isdigit():
+                query = "SELECT id FROM Person WHERE id = ?"
+                cursor.execute(query, (search_term,))
+            else:
+                query = "SELECT id FROM Person WHERE FullName LIKE ?"
+                cursor.execute(query, (f"%{search_term}%",))
+
+            result = cursor.fetchone()
+            if result:
+                person_id = result[0]
+                dialog = PersonDetailsDialog(person_id, self)
+                dialog.exec()
+            else:
+                QMessageBox.information(self, "Not Found", "No matching person found.")
+        finally:
+            connection.close()
+
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

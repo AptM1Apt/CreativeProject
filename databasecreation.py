@@ -193,6 +193,16 @@ BEGIN
         SELECT id FROM GeoSpot WHERE Cemetery_id = OLD.id
     );
 END;
+
+-- Добавление ссылки на картинку
+CREATE TRIGGER InsertImageLink
+AFTER INSERT ON Person
+FOR EACH ROW
+BEGIN
+    UPDATE Person
+    SET ImageLink = "images/img" || NEW.id || ".png"
+    WHERE id = NEW.id;
+END;
 '''
 
 cur.executescript(scr)
