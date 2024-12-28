@@ -318,8 +318,15 @@ class PersonDetailsDialog(QDialog):
 
         for descendant in descendants:
             descendant_combo = QComboBox()
-            descendant_combo.addItems(self.load_descendants())
-            descendant_combo.setCurrentText(f"{descendant[0]}: {descendant[1]}, {descendant[2]}")
+            items = self.load_descendants()
+            descendant_combo.addItems(items)
+            # Формируем строку для установки текущего текста
+            current_text = f"{descendant[0]}: {descendant[1]} {descendant[2]}"
+            if current_text in items:
+                descendant_combo.setCurrentText(current_text)
+            else:
+                print(f"Внимание: '{current_text}' не найдено в списке. Проверьте данные.")
+            
             self.descendants_layout.addWidget(descendant_combo)
             self.descendant_widgets.append(descendant_combo)
 
@@ -334,6 +341,7 @@ class PersonDetailsDialog(QDialog):
 
         layout.addWidget(self.add_descendant_button)
         layout.addWidget(self.remove_descendant_button)
+
 
         # Save Button
         save_button = QPushButton("Сохранить")
